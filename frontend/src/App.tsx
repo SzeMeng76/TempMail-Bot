@@ -72,7 +72,7 @@ export default function App() {
 
 			<Navbar />
 
-			<main className="container mx-auto px-4 py-8 sm:py-12 max-w-3xl">
+			<main className="container mx-auto px-4 py-8 sm:py-12 max-w-6xl">
 				<header className="text-center mb-8">
 					<h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2">
 						<Mail className="w-7 h-7 text-blue-600 dark:text-blue-400" />
@@ -83,118 +83,147 @@ export default function App() {
 					</p>
 				</header>
 
-				<div className="rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-xl shadow-blue-900/5 p-4 sm:p-6 mb-6">
-					{mailbox.loading ? (
-						<div className="space-y-3 animate-pulse">
-							<div className="h-11 rounded-lg bg-slate-200/70 dark:bg-white/10" />
-							<div className="h-3 w-40 rounded bg-slate-200/70 dark:bg-white/10" />
-						</div>
-					) : (
-						<>
-							<div className="flex flex-col sm:flex-row items-center gap-3">
-								<div className="flex-1 min-w-0 bg-white/70 dark:bg-black/20 border border-white/60 dark:border-white/10 rounded-lg px-4 py-2.5 font-mono text-sm text-slate-900 dark:text-slate-100 select-all break-all w-full">
-									{mailbox.address}
-								</div>
-								{mailbox.address && <CopyButton text={mailbox.address} />}
+				<div className="grid lg:grid-cols-2 gap-6">
+					<div className="rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-xl shadow-blue-900/5 p-4 sm:p-6 h-full">
+						{mailbox.loading ? (
+							<div className="space-y-3 animate-pulse">
+								<div className="h-11 rounded-lg bg-slate-200/70 dark:bg-white/10" />
+								<div className="h-3 w-40 rounded bg-slate-200/70 dark:bg-white/10" />
 							</div>
-
-							{mailbox.password && (
-								<div className="mt-2 space-y-2">
-									<CredentialField label="密码" value={mailbox.password} mask />
-									{mailbox.token && (
-										<CredentialField label="令牌" value={mailbox.token} mask />
-									)}
+						) : (
+							<>
+								<div className="flex flex-col sm:flex-row items-center gap-3">
+									<div className="flex-1 min-w-0 bg-white/70 dark:bg-black/20 border border-white/60 dark:border-white/10 rounded-lg px-4 py-2.5 font-mono text-sm text-slate-900 dark:text-slate-100 select-all break-all w-full">
+										{mailbox.address}
+									</div>
+									{mailbox.address && <CopyButton text={mailbox.address} />}
 								</div>
-							)}
 
-							<div className="flex items-center gap-2 mt-3">
-								<button
-									type="button"
-									onClick={() => mailbox.generate()}
-									className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-								>
-									<RotateCcw className="w-3.5 h-3.5" />
-									换一个
-								</button>
-								<span className="text-slate-300 dark:text-slate-600">·</span>
-								<button
-									type="button"
-									onClick={() => setShowRestore((v) => !v)}
-									className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-								>
-									恢复已有邮箱
-								</button>
-							</div>
+								{mailbox.password && (
+									<div className="mt-2 space-y-2">
+										<CredentialField label="密码" value={mailbox.password} mask />
+										{mailbox.token && (
+											<CredentialField label="令牌" value={mailbox.token} mask />
+										)}
+									</div>
+								)}
 
-							{showRestore && (
-								<div className="mt-3 pt-3 border-t border-white/60 dark:border-white/10">
-									<RestoreForm
-										onRestore={(addr, pwd) => {
-											mailbox.restore(addr, pwd);
-											setShowRestore(false);
-										}}
-									/>
+								<div className="flex items-center gap-2 mt-3">
+									<button
+										type="button"
+										onClick={() => mailbox.generate()}
+										className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+									>
+										<RotateCcw className="w-3.5 h-3.5" />
+										换一个
+									</button>
+									<span className="text-slate-300 dark:text-slate-600">·</span>
+									<button
+										type="button"
+										onClick={() => setShowRestore((v) => !v)}
+										className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+									>
+										恢复已有邮箱
+									</button>
 								</div>
-							)}
 
-							{mailbox.error && (
-								<p className="text-red-500 dark:text-red-400 text-xs mt-2">
-									{mailbox.error}
-								</p>
-							)}
-						</>
-					)}
-				</div>
+								{showRestore && (
+									<div className="mt-3 pt-3 border-t border-white/60 dark:border-white/10">
+										<RestoreForm
+											onRestore={(addr, pwd) => {
+												mailbox.restore(addr, pwd);
+												setShowRestore(false);
+											}}
+										/>
+									</div>
+								)}
 
-				<div className="rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-xl shadow-blue-900/5 overflow-hidden">
-					<div className="flex items-center justify-between px-4 py-3 border-b border-white/60 dark:border-white/10">
-						<div className="flex items-center gap-2">
-							<span className="font-semibold text-slate-800 dark:text-slate-100">
-								收件箱
-							</span>
-							{unreadCount > 0 && (
-								<span className="bg-blue-500/15 text-blue-700 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full">
-									{unreadCount} 未读
-								</span>
-							)}
-						</div>
-						<button
-							type="button"
-							onClick={() => mailbox.refresh()}
-							disabled={mailbox.refreshing || !mailbox.token}
-							className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
-						>
-							<RefreshCw
-								className={`w-3.5 h-3.5 ${mailbox.refreshing ? "animate-spin" : ""}`}
-							/>
-							刷新
-						</button>
+								{mailbox.error && (
+									<p className="text-red-500 dark:text-red-400 text-xs mt-2">
+										{mailbox.error}
+									</p>
+								)}
+
+								<div className="mt-6 pt-6 border-t border-white/60 dark:border-white/10 grid grid-cols-3 gap-3 text-center">
+									<div>
+										<div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+											10s
+										</div>
+										<div className="text-xs text-slate-500 dark:text-slate-400">
+											自动刷新
+										</div>
+									</div>
+									<div>
+										<div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+											免费
+										</div>
+										<div className="text-xs text-slate-500 dark:text-slate-400">
+											无需注册
+										</div>
+									</div>
+									<div>
+										<div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+											开源
+										</div>
+										<div className="text-xs text-slate-500 dark:text-slate-400">
+											可自行部署
+										</div>
+									</div>
+								</div>
+							</>
+						)}
 					</div>
 
-					<div className="h-[26rem] overflow-y-auto">
-						{openMessageId ? (
-							<MessageDetail
-								token={mailbox.token!}
-								messageId={openMessageId}
-								onBack={() => setOpenMessageId(null)}
-							/>
-						) : mailbox.loading ? (
-							<MessageSkeleton />
-						) : mailbox.messages.length > 0 ? (
-							mailbox.messages.map((m) => (
-								<MessageItem
-									key={m.id}
-									message={m}
-									onClick={() => setOpenMessageId(m.id)}
-								/>
-							))
-						) : (
-							<div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 px-4">
-								<div className="text-4xl mb-3">📭</div>
-								<p className="text-sm">收件箱为空</p>
-								<p className="text-xs mt-1">收件箱每 10 秒自动刷新</p>
+					<div className="rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col">
+						<div className="flex items-center justify-between px-4 py-3 border-b border-white/60 dark:border-white/10 shrink-0">
+							<div className="flex items-center gap-2">
+								<span className="font-semibold text-slate-800 dark:text-slate-100">
+									收件箱
+								</span>
+								{unreadCount > 0 && (
+									<span className="bg-blue-500/15 text-blue-700 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full">
+										{unreadCount} 未读
+									</span>
+								)}
 							</div>
-						)}
+							<button
+								type="button"
+								onClick={() => mailbox.refresh()}
+								disabled={mailbox.refreshing || !mailbox.token}
+								className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
+							>
+								<RefreshCw
+									className={`w-3.5 h-3.5 ${mailbox.refreshing ? "animate-spin" : ""}`}
+								/>
+								刷新
+							</button>
+						</div>
+
+						<div className="flex-1 min-h-[26rem] overflow-y-auto">
+							{openMessageId ? (
+								<MessageDetail
+									token={mailbox.token!}
+									messageId={openMessageId}
+									onBack={() => setOpenMessageId(null)}
+								/>
+							) : mailbox.loading ? (
+								<MessageSkeleton />
+							) : mailbox.messages.length > 0 ? (
+								mailbox.messages.map((m) => (
+									<MessageItem
+										key={m.id}
+										message={m}
+										onClick={() => setOpenMessageId(m.id)}
+									/>
+								))
+							) : (
+								<div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 px-4">
+									<div className="text-4xl mb-3">📭</div>
+									<p className="text-sm">收件箱为空</p>
+									<p className="text-xs mt-1">收件箱每 10 秒自动刷新</p>
+								</div>
+							)}
+						</div>
 					</div>
 				</div>
 
