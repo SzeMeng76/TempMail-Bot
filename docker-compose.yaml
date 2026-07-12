@@ -12,5 +12,8 @@ services:
     image: ghcr.io/szemeng76/tempmail-web:latest # 也可改成 build: ./frontend 本地构建
     container_name: tempmail-web
     restart: unless-stopped
+    # 容器内 nginx 监听 8080，这里把宿主机的 8080 映射进去
+    # 若宿主机 Docker 网络异常必须用 network_mode: "host"，
+    # 则删掉 ports 这一段（host 模式下端口映射不生效，容器会直接占用宿主机的 8080）
     ports:
-      - "8080:80"
+      - "8080:8080"
