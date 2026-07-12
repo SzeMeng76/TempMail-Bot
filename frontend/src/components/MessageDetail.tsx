@@ -46,32 +46,34 @@ export function MessageDetail({
 
 	return (
 		<div className="flex flex-col h-full">
-			<div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 shrink-0">
+			<div className="flex items-center gap-2 px-4 py-3 border-b border-white/60 dark:border-white/10 shrink-0">
 				<button
 					type="button"
 					onClick={onBack}
-					className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600"
+					className="p-1.5 rounded-md hover:bg-white/60 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors"
 				>
 					<ArrowLeft className="w-4 h-4" />
 				</button>
-				<span className="text-sm text-gray-500">返回收件箱</span>
+				<span className="text-sm text-slate-500 dark:text-slate-400">返回收件箱</span>
 			</div>
 
-			{error && <div className="p-4 text-sm text-red-600">{error}</div>}
+			{error && (
+				<div className="p-4 text-sm text-red-600 dark:text-red-400">{error}</div>
+			)}
 
 			{!detail && !error && (
-				<div className="flex-1 flex items-center justify-center text-gray-400">
+				<div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500">
 					<Loader2 className="w-5 h-5 animate-spin" />
 				</div>
 			)}
 
 			{detail && (
 				<>
-					<div className="px-4 py-3 border-b border-gray-100 shrink-0">
-						<h2 className="text-base font-semibold text-gray-900 break-words">
+					<div className="px-4 py-3 border-b border-white/60 dark:border-white/10 shrink-0">
+						<h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 break-words">
 							{detail.subject || "(无主题)"}
 						</h2>
-						<div className="mt-1 text-xs text-gray-500 space-y-0.5">
+						<div className="mt-1 text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
 							<div>发件人：{detail.from?.address}</div>
 							<div>时间：{new Date(detail.createdAt).toLocaleString("zh-CN")}</div>
 						</div>
@@ -80,7 +82,7 @@ export function MessageDetail({
 						title="邮件内容"
 						srcDoc={buildSrcDoc(detail)}
 						sandbox=""
-						className="flex-1 w-full border-0"
+						className="flex-1 w-full border-0 bg-white"
 					/>
 				</>
 			)}
