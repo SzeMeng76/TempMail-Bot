@@ -1,4 +1,5 @@
-import { Code2, Mail, Send } from "lucide-react";
+import { Bot, Mail, Send } from "lucide-react";
+import { GithubIcon } from "./icons/GithubIcon";
 
 const FRIEND_LINKS = [
 	{ label: "SM ONE DIGITAL STORE", href: "https://web.sm-one.com/" },
@@ -24,7 +25,16 @@ export function Footer() {
 							</span>
 						</div>
 						<p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs">
-							免费、开源、无需注册的临时邮箱工具，同时提供网页和 Telegram 机器人两种使用方式。
+							免费、开源、无需注册的临时邮箱工具，同时提供网页和 Telegram 机器人（
+							<a
+								href="https://t.me/smonetempbot"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+							>
+								@smonetempbot
+							</a>
+							）两种使用方式。
 						</p>
 						<div className="flex items-center gap-4 mt-4">
 							<a
@@ -34,7 +44,16 @@ export function Footer() {
 								className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
 								aria-label="GitHub"
 							>
-								<Code2 className="w-5 h-5" />
+								<GithubIcon className="w-5 h-5" />
+							</a>
+							<a
+								href="https://t.me/smonetempbot"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+								aria-label="Telegram 机器人"
+							>
+								<Bot className="w-5 h-5" />
 							</a>
 							<a
 								href="https://t.me/csmmy90"

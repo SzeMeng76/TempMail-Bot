@@ -1,4 +1,5 @@
-import { Code2, Mail } from "lucide-react";
+import { Bot, Mail } from "lucide-react";
+import { GithubIcon } from "./icons/GithubIcon";
 
 export function Navbar() {
 	return (
@@ -23,12 +24,21 @@ export function Navbar() {
 						常见问题
 					</a>
 					<a
+						href="https://t.me/smonetempbot"
+						target="_blank"
+						rel="noopener noreferrer"
+						className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+					>
+						<Bot className="w-4 h-4" />
+						<span className="hidden sm:inline">机器人</span>
+					</a>
+					<a
 						href="https://github.com/SzeMeng76/TempMail-Bot"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
 					>
-						<Code2 className="w-4 h-4" />
+						<GithubIcon className="w-4 h-4" />
 						<span className="hidden sm:inline">GitHub</span>
 					</a>
 				</nav>
