@@ -1,11 +1,11 @@
 <h1 align="center">TempMail 💌</h1>
 
 <p align="center">
-  <a href="https://github.com/bisnuray/TempMail-Bot/stargazers"><img src="https://img.shields.io/github/stars/bisnuray/TempMail-Bot?color=blue&style=flat" alt="GitHub Repo stars"></a>
-  <a href="https://github.com/bisnuray/TempMail-Bot/issues"><img src="https://img.shields.io/github/issues/bisnuray/TempMail-Bot" alt="GitHub issues"></a>
-  <a href="https://github.com/bisnuray/TempMail-Bot/pulls"><img src="https://img.shields.io/github/issues-pr/bisnuray/TempMail-Bot" alt="GitHub pull requests"></a>
-  <a href="https://github.com/bisnuray/TempMail-Bot/graphs/contributors"><img src="https://img.shields.io/github/contributors/bisnuray/TempMail-Bot?style=flat" alt="GitHub contributors"></a>
-  <a href="https://github.com/bisnuray/TempMail-Bot/network/members"><img src="https://img.shields.io/github/forks/bisnuray/TempMail-Bot?style=flat" alt="GitHub forks"></a>
+  <a href="https://github.com/SzeMeng76/TempMail-Bot/stargazers"><img src="https://img.shields.io/github/stars/SzeMeng76/TempMail-Bot?color=blue&style=flat" alt="GitHub Repo stars"></a>
+  <a href="https://github.com/SzeMeng76/TempMail-Bot/issues"><img src="https://img.shields.io/github/issues/SzeMeng76/TempMail-Bot" alt="GitHub issues"></a>
+  <a href="https://github.com/SzeMeng76/TempMail-Bot/pulls"><img src="https://img.shields.io/github/issues-pr/SzeMeng76/TempMail-Bot" alt="GitHub pull requests"></a>
+  <a href="https://github.com/SzeMeng76/TempMail-Bot/graphs/contributors"><img src="https://img.shields.io/github/contributors/SzeMeng76/TempMail-Bot?style=flat" alt="GitHub contributors"></a>
+  <a href="https://github.com/SzeMeng76/TempMail-Bot/network/members"><img src="https://img.shields.io/github/forks/SzeMeng76/TempMail-Bot?style=flat" alt="GitHub forks"></a>
 </p>
 
 <p align="center">
@@ -98,7 +98,7 @@ bot 和网页各自独立打包成镜像，互不依赖，都是直接调用 [ma
 ### 方式二：本地直接运行机器人
 
 ```bash
-git clone https://github.com/bisnuray/TempMail-Bot
+git clone https://github.com/SzeMeng76/TempMail-Bot
 cd TempMail-Bot
 pip install -r requirements.txt
 ```
@@ -130,9 +130,21 @@ npm run dev
 
 ✨ 生成邮箱后会拿到一个邮箱令牌（token），该令牌可用于查看这个临时邮箱收到的邮件，请妥善保管，不要泄露给他人。mail.tm 的公共接口限流为每个 IP 每秒 8 次请求（8 QPS）。
 
+## Credits
+
+本项目的 Telegram 机器人（`tempmail.py` / `config.py`）基于 [Bisnu Ray](https://t.me/itsSmartDev) 的 [TempMail-Bot](https://github.com/bisnuray/TempMail-Bot) 二次开发。
+
+在此基础上新增了：
+
+- `frontend/` 网页前端（React + Vite + Tailwind，纯客户端直连 mail.tm API）
+- bot / web 的 Dockerfile、`docker-compose.yaml`
+- GitHub Actions 多架构（amd64/arm64）镜像构建与发布到 GHCR 的 CI 流程
+
+以上新增部分均由本仓库维护者独立完成。
+
 ## 作者
 
-- Name: Bisnu Ray
-- Telegram: [@itsSmartDev](https://t.me/itsSmartDev)
+- 原始机器人作者：Bisnu Ray — Telegram: [@itsSmartDev](https://t.me/itsSmartDev)
+- 本仓库（Docker 化 + 网页前端 + CI）维护：[SzeMeng76](https://github.com/SzeMeng76)
 
 Feel free to reach out if you have any questions or feedback.

@@ -2,9 +2,14 @@ import { Mail, RefreshCw, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "./components/CopyButton";
 import { CredentialField } from "./components/CredentialField";
+import { Faq } from "./components/Faq";
+import { Features } from "./components/Features";
+import { Footer } from "./components/Footer";
+import { HowItWorks } from "./components/HowItWorks";
 import { MessageDetail } from "./components/MessageDetail";
 import { MessageItem } from "./components/MessageItem";
 import { MessageSkeleton } from "./components/MessageSkeleton";
+import { Navbar } from "./components/Navbar";
 import { useMailbox } from "./hooks/useMailbox";
 
 function RestoreForm({
@@ -57,13 +62,15 @@ export default function App() {
 	const unreadCount = mailbox.messages.filter((m) => !m.seen).length;
 
 	return (
-		<div className="relative min-h-screen overflow-hidden">
+		<div id="top" className="relative min-h-screen overflow-hidden">
 			{/* 装饰性渐变光斑背景 */}
 			<div className="pointer-events-none fixed inset-0 -z-10">
 				<div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-400/30 dark:bg-blue-500/20 blur-3xl" />
 				<div className="absolute top-1/3 -right-32 w-96 h-96 rounded-full bg-cyan-300/30 dark:bg-cyan-500/10 blur-3xl" />
 				<div className="absolute bottom-0 left-1/4 w-96 h-96 rounded-full bg-purple-300/20 dark:bg-purple-500/10 blur-3xl" />
 			</div>
+
+			<Navbar />
 
 			<main className="container mx-auto px-4 py-8 sm:py-12 max-w-3xl">
 				<header className="text-center mb-8">
@@ -190,7 +197,13 @@ export default function App() {
 						)}
 					</div>
 				</div>
+
+				<Features />
+				<HowItWorks />
+				<Faq />
 			</main>
+
+			<Footer />
 		</div>
 	);
 }
