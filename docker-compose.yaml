@@ -1,0 +1,9 @@
+services:
+  tempmail-bot:
+    image: ghcr.io/szemeng76/tempmail-bot:latest # 也可改成 build: . 本地构建
+    container_name: tempmail-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./sessions:/app/sessions

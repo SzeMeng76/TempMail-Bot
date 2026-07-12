@@ -1,6 +1,7 @@
 # Author (C) @theSmartBisnu
 # Channel : https://t.me/itsSmartDev
 
+import os
 import re
 import time
 import random
@@ -29,7 +30,8 @@ bot = Client(
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
     workers=1000,
-    parse_mode=ParseMode.MARKDOWN
+    parse_mode=ParseMode.MARKDOWN,
+    workdir=os.environ.get("SESSION_DIR", ".")
 )
 
 user_data = {}
@@ -123,14 +125,14 @@ def list_messages(token):
 @bot.on_message(filters.command('start'))
 async def start(client, message):
     welcome_message = (
-        "**Welcome to our Temp Mail Bot!** 🎉\n\n"
-        "You can use the following commands to manage temporary email addresses:\n\n"
-        "➢ `/tmail` - Generate a random mail with a password.\n"
-        "➢ `/tmail [username]:[pass]` - Generate a specific mail with a password.\n"
-        "➢ `/cmail [mail token]` - Check the 10 most recent mails using your mail token.\n\n"
-        "✨ **Note:** When you generate a mail and password, you will receive a mail token. "
-        "This token allows you to check the 10 most recent emails received by your temporary mail address. "
-        "Each email has a different token, so please keep your tokens private and secure. 🛡️"
+        "**欢迎使用临时邮箱机器人！** 🎉\n\n"
+        "你可以使用以下命令来管理临时邮箱地址：\n\n"
+        "➢ `/tmail` - 随机生成一个临时邮箱和密码。\n"
+        "➢ `/tmail [用户名]:[密码]` - 使用指定的用户名和密码生成邮箱。\n"
+        "➢ `/cmail [邮箱令牌]` - 使用令牌查看最近的 10 封邮件。\n\n"
+        "✨ **提示：** 生成邮箱和密码后，你会获得一个邮箱令牌（token）。"
+        "该令牌可用于查看该临时邮箱收到的最近 10 封邮件。"
+        "每个邮箱的令牌都不同，请妥善保管，不要泄露给他人。🛡️"
     )
     await message.reply(welcome_message)
 
@@ -138,10 +140,10 @@ async def start(client, message):
 @bot.on_message(filters.command('tmail'))
 async def generate_mail(client, message):
     if message.chat.type != ChatType.PRIVATE:
-        await message.reply("**Please use this bot in private chat only.**")
+        await message.reply("**请在私聊中使用此机器人。**")
         return
 
-    loading_msg = await message.reply("**Generating your temporary email...**")
+    loading_msg = await message.reply("**正在生成临时邮箱...**")
 
     args_text = message.text.split(maxsplit=1)[1] if len(message.text.split()) > 1 else ""
     args = args_text.split()
@@ -153,14 +155,14 @@ async def generate_mail(client, message):
 
     domain = get_domain()
     if not domain:
-        await message.reply("**Failed to retrieve domain try Again**")
+        await message.reply("**获取域名失败，请重试**")
         await bot.delete_messages(message.chat.id, [loading_msg.message_id])
         return
 
     email = f"{username}@{domain}"
     account = create_account(email, password)
     if not account:
-        await message.reply("**Username already taken. Choose another one.**")
+        await message.reply("**用户名已被占用，请换一个。**")
         await bot.delete_messages(message.chat.id, [loading_msg.message_id])
         return
 
@@ -168,7 +170,7 @@ async def generate_mail(client, message):
 
     token = get_token(email, password)
     if not token:
-        await message.reply("**Failed to retrieve token.**")
+        await message.reply("**获取令牌失败。**")
         await bot.delete_messages(message.chat.id, [loading_msg.message_id])
         return
 
@@ -176,16 +178,16 @@ async def generate_mail(client, message):
     token_map[short_id] = token
 
     output_message = (
-        "**📧 Smart-Email Details 📧**\n"
+        "**📧 智能邮箱详情 📧**\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        f"**📧 Email:** `{email}`\n"
-        f"**🔑 Password:** `{password}`\n"
-        f"**🔒 Token:** `{token}`\n"
+        f"**📧 邮箱：** `{email}`\n"
+        f"**🔑 密码：** `{password}`\n"
+        f"**🔒 令牌：** `{token}`\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        "**Note: Keep the token to Access Mail**"
+        "**提示：请保管好令牌，用于查看邮件**"
     )
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton("Check Emails", callback_data=f"check_{short_id}")]])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton("查看邮件", callback_data=f"check_{short_id}")]])
 
     await message.reply(output_message, reply_markup=keyboard)
     await bot.delete_messages(message.chat.id, [loading_msg.id])
@@ -195,24 +197,24 @@ async def check_mail(client, callback_query):
     short_id = callback_query.data.split('_')[1]
     token = token_map.get(short_id)
     if not token:
-        await callback_query.message.reply("**Session expired, Please use /cmail with your token.**")
+        await callback_query.message.reply("**会话已过期，请使用 /cmail 命令并提供你的令牌。**")
         return
 
     user_tokens[callback_query.from_user.id] = token
-    
+
     messages = list_messages(token)
     if not messages:
-        await callback_query.answer("No messages received ❌", show_alert=True)
+        await callback_query.answer("暂无邮件 ❌", show_alert=True)
         return
 
-    loading_msg = await callback_query.message.reply("**⏳ Checking Mails.. Please wait.**")
+    loading_msg = await callback_query.message.reply("**⏳ 正在查看邮件，请稍候。**")
 
-    output = "**📧 Your Smart-Mail Messages 📧**\n"
+    output = "**📧 你的智能邮箱消息 📧**\n"
     output += "**━━━━━━━━━━━━━━━━━━**\n"
-    
+
     buttons = []
     for idx, msg in enumerate(messages[:10], 1):
-        output += f"{idx}. From: `{msg['from']['address']}` - Subject: {msg['subject']}\n"
+        output += f"{idx}. 发件人：`{msg['from']['address']}` - 主题：{msg['subject']}\n"
         button = InlineKeyboardButton(f"{idx}", callback_data=f"read_{msg['id']}")
         buttons.append(button)
     
@@ -233,7 +235,7 @@ async def read_message(client, callback_query):
     token = user_tokens.get(callback_query.from_user.id)
 
     if not token:
-        await callback_query.message.reply("**Token not found. Please use /cmail with your token again.**")
+        await callback_query.message.reply("**未找到令牌，请重新使用 /cmail 命令并提供你的令牌。**")
         return
 
     headers = {
@@ -250,51 +252,51 @@ async def read_message(client, callback_query):
         elif 'text' in details:
             message_text = details['text']
         else:
-            message_text = "Content not available."
-        
+            message_text = "暂无可显示的内容。"
+
         # Truncate the message if it's too long
         if len(message_text) > MAX_MESSAGE_LENGTH:
-            message_text = message_text[:MAX_MESSAGE_LENGTH - 100] + "... [message truncated]"
+            message_text = message_text[:MAX_MESSAGE_LENGTH - 100] + "...【内容已截断】"
 
-        output = f"**From:** `{details['from']['address']}`\n**Subject:** `{details['subject']}`\n━━━━━━━━━━━━━━━━━━\n{message_text}"
+        output = f"**发件人：** `{details['from']['address']}`\n**主题：** `{details['subject']}`\n━━━━━━━━━━━━━━━━━━\n{message_text}"
 
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Close", callback_data="close_message")]
+            [InlineKeyboardButton("关闭", callback_data="close_message")]
         ])
 
         sent_message = await callback_query.message.reply(output, disable_web_page_preview=True, reply_markup=keyboard)
 
     else:
-        await callback_query.message.reply("**Error retrieving message details.**")
+        await callback_query.message.reply("**获取邮件详情失败。**")
 
 
 @bot.on_message(filters.command('cmail'))
 async def manual_check_mail(client, message):
     if message.chat.type != ChatType.PRIVATE:
-        await message.reply("**Please use this bot in private chat only.**")
+        await message.reply("**请在私聊中使用此机器人。**")
         return
 
-    loading_msg = await message.reply("**⏳ Checking Mails.. Please wait.**")
+    loading_msg = await message.reply("**⏳ 正在查看邮件，请稍候。**")
 
     token = message.text.split(maxsplit=1)[1] if len(message.text.split()) > 1 else ""
     if not token:
-        await message.reply("**Please provide a token after the /cmail command.**")
+        await message.reply("**请在 /cmail 命令后提供令牌。**")
         await bot.delete_messages(message.chat.id, [loading_msg.id])
         return
 
     user_tokens[message.from_user.id] = token
     messages = list_messages(token)
     if not messages:
-        await message.reply("**❌ No messages found or maybe wrong token**")
+        await message.reply("**❌ 未找到邮件，或令牌错误**")
         await bot.delete_messages(message.chat.id, [loading_msg.id])
         return
 
-    output = "**📧 Your Smart-Mail Messages 📧**\n"
+    output = "**📧 你的智能邮箱消息 📧**\n"
     output += "**━━━━━━━━━━━━━━━━━━**\n"
-    
+
     buttons = []
     for idx, msg in enumerate(messages[:10], 1):
-        output += f"{idx}. From: {msg['from']['address']} - Subject: {msg['subject']}\n"
+        output += f"{idx}. 发件人：{msg['from']['address']} - 主题：{msg['subject']}\n"
         button = InlineKeyboardButton(f"{idx}", callback_data=f"read_{msg['id']}")
         buttons.append(button)
 

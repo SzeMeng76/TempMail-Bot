@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yaml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# IDE / OS specific
+.idea/
+.vscode/
+.DS_Store
+
+# Secrets & sessions
+.env
+*.env
+*.session
+*.session-journal
+sessions/
