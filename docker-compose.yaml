@@ -7,3 +7,10 @@ services:
       - .env
     volumes:
       - ./sessions:/app/sessions
+
+  tempmail-web:
+    image: ghcr.io/szemeng76/tempmail-web:latest # 也可改成 build: ./frontend 本地构建
+    container_name: tempmail-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
