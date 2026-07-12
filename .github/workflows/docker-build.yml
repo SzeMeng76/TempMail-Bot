@@ -116,9 +116,11 @@ jobs:
 
       - name: Create and push multi-arch manifest
         working-directory: /tmp/digests
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           IMAGE="${{ steps.image.outputs.name }}"
           SOURCES=$(printf '%s@sha256:%s ' "$IMAGE" *)
-          for tag in ${{ steps.meta.outputs.tags }}; do
-            docker buildx imagetools create --tag "$tag" $SOURCES
-          done
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && docker buildx imagetools create --tag "$tag" $SOURCES
+          done <<< "$TAGS"
