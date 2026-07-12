@@ -120,7 +120,10 @@ jobs:
           TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           IMAGE="${{ steps.image.outputs.name }}"
-          SOURCES=$(printf '%s@sha256:%s ' "$IMAGE" *)
+          SOURCES=""
+          for digest in *; do
+            SOURCES="$SOURCES $IMAGE@sha256:$digest"
+          done
           while IFS= read -r tag; do
             [ -n "$tag" ] && docker buildx imagetools create --tag "$tag" $SOURCES
           done <<< "$TAGS"
