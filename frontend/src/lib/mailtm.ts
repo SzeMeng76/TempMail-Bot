@@ -1,4 +1,4 @@
-const BASE_URL = "https://api.mail.tm";
+const BASE_URL = "/api/mailtm";
 
 export interface Domain {
 	id: string;
