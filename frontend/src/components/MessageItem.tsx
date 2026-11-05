@@ -1,4 +1,4 @@
-import type { MessageSummary } from "../lib/mailtm";
+import type { MailMessage } from "../lib/mailbox";
 
 function formatTime(iso: string): string {
 	const date = new Date(iso);
@@ -13,7 +13,7 @@ export function MessageItem({
 	message,
 	onClick,
 }: {
-	message: MessageSummary;
+	message: MailMessage;
 	onClick: () => void;
 }) {
 	return (

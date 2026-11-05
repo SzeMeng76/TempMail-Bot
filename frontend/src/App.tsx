@@ -1,7 +1,6 @@
-import { Mail, RefreshCw, RotateCcw } from "lucide-react";
+import { ChevronDown, Mail, RefreshCw, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "./components/CopyButton";
-import { CredentialField } from "./components/CredentialField";
 import { Faq } from "./components/Faq";
 import { Features } from "./components/Features";
 import { Footer } from "./components/Footer";
@@ -19,37 +18,76 @@ function RestoreForm({
 }) {
 	const [address, setAddress] = useState("");
 	const [password, setPassword] = useState("");
+	// 两种恢复方式：带凭证的（地址+密码）和仅凭地址的。
+	// 界面上不写服务商名称，只用中性的说法描述。
+	const [mode, setMode] = useState<"credential" | "address">("credential");
 
 	return (
 		<form
 			onSubmit={(e) => {
 				e.preventDefault();
-				if (address && password) onRestore(address.trim(), password);
+				if (address) onRestore(address.trim(), mode === "credential" ? password : "");
 			}}
-			className="flex flex-col sm:flex-row gap-2"
+			className="space-y-2"
 		>
-			<input
-				type="email"
-				required
-				placeholder="邮箱地址"
-				value={address}
-				onChange={(e) => setAddress(e.target.value)}
-				className="flex-1 px-3 py-2 rounded-lg text-sm bg-white/60 dark:bg-white/5 border border-white/40 dark:border-white/10 placeholder:text-slate-400 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
-			/>
-			<input
-				type="password"
-				required
-				placeholder="密码"
-				value={password}
-				onChange={(e) => setPassword(e.target.value)}
-				className="flex-1 px-3 py-2 rounded-lg text-sm bg-white/60 dark:bg-white/5 border border-white/40 dark:border-white/10 placeholder:text-slate-400 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
-			/>
-			<button
-				type="submit"
-				className="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap bg-blue-600/10 dark:bg-blue-400/10 text-blue-700 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-600/20 dark:hover:bg-blue-400/20 transition-colors"
-			>
-				恢复邮箱
-			</button>
+			<div className="flex gap-1 p-1 rounded-lg bg-white/40 dark:bg-black/20 border border-white/60 dark:border-white/10">
+				<button
+					type="button"
+					onClick={() => setMode("credential")}
+					className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+						mode === "credential"
+							? "bg-blue-600 text-white shadow-sm"
+							: "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/10"
+					}`}
+				>
+					地址 + 密码
+				</button>
+				<button
+					type="button"
+					onClick={() => setMode("address")}
+					className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+						mode === "address"
+							? "bg-blue-600 text-white shadow-sm"
+							: "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/10"
+					}`}
+				>
+					仅地址
+				</button>
+			</div>
+
+			<div className="flex flex-col sm:flex-row gap-2">
+				<input
+					type="email"
+					required
+					placeholder="邮箱地址"
+					value={address}
+					onChange={(e) => setAddress(e.target.value)}
+					className="flex-1 px-3 py-2 rounded-lg text-sm bg-white/60 dark:bg-white/5 border border-white/40 dark:border-white/10 placeholder:text-slate-400 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+				/>
+				<button
+					type="submit"
+					className="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap bg-blue-600/10 dark:bg-blue-400/10 text-blue-700 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-600/20 dark:hover:bg-blue-400/20 transition-colors"
+				>
+					恢复邮箱
+				</button>
+			</div>
+
+			{mode === "credential" && (
+				<input
+					type="password"
+					required
+					placeholder="密码"
+					value={password}
+					onChange={(e) => setPassword(e.target.value)}
+					className="w-full px-3 py-2 rounded-lg text-sm bg-white/60 dark:bg-white/5 border border-white/40 dark:border-white/10 placeholder:text-slate-400 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+				/>
+			)}
+
+			<p className="text-xs text-slate-400 dark:text-slate-500 leading-5">
+				{mode === "credential"
+					? "适用于生成时给过密码的邮箱。"
+					: "适用于不需要密码的邮箱，只要地址还在就能打开。"}
+			</p>
 		</form>
 	);
 }
@@ -59,7 +97,15 @@ export default function App() {
 	const [openMessageId, setOpenMessageId] = useState<string | null>(null);
 	const [showRestore, setShowRestore] = useState(false);
 
+	const [domain, setDomain] = useState("");
+	const [prefix, setPrefix] = useState("");
+
 	const unreadCount = mailbox.messages.filter((m) => !m.seen).length;
+
+	const handleGenerate = () => {
+		setOpenMessageId(null);
+		mailbox.generate(domain || undefined, prefix.trim() || undefined);
+	};
 
 	return (
 		<div id="top" className="relative min-h-screen overflow-hidden">
@@ -94,24 +140,17 @@ export default function App() {
 							<>
 								<div className="flex flex-col sm:flex-row items-center gap-3">
 									<div className="flex-1 min-w-0 bg-white/70 dark:bg-black/20 border border-white/60 dark:border-white/10 rounded-lg px-4 py-2.5 font-mono text-sm text-slate-900 dark:text-slate-100 select-all break-all w-full">
-										{mailbox.address}
+										{mailbox.session?.address}
 									</div>
-									{mailbox.address && <CopyButton text={mailbox.address} />}
+									{mailbox.session?.address && (
+										<CopyButton text={mailbox.session.address} />
+									)}
 								</div>
-
-								{mailbox.password && (
-									<div className="mt-2 space-y-2">
-										<CredentialField label="密码" value={mailbox.password} mask />
-										{mailbox.token && (
-											<CredentialField label="令牌" value={mailbox.token} mask />
-										)}
-									</div>
-								)}
 
 								<div className="flex items-center gap-2 mt-3">
 									<button
 										type="button"
-										onClick={() => mailbox.generate()}
+										onClick={handleGenerate}
 										className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
 									>
 										<RotateCcw className="w-3.5 h-3.5" />
@@ -125,6 +164,43 @@ export default function App() {
 									>
 										恢复已有邮箱
 									</button>
+								</div>
+
+								{/* 不选就随机，选了就固定用那个后缀 */}
+								<div className="mt-3 space-y-2">
+									<input
+										type="text"
+										value={prefix}
+										onChange={(e) => setPrefix(e.target.value)}
+										disabled={mailbox.loading}
+										maxLength={32}
+										placeholder="自定义前缀（留空则随机）"
+										className="w-full px-3 py-2 rounded-lg text-sm bg-white/60 dark:bg-white/5 border border-white/40 dark:border-white/10 placeholder:text-slate-400 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/60 disabled:opacity-50"
+									/>
+
+									{/* 只要拿到域名就显示选择器；只有一个时也显示，让用户清楚当前用的是哪个后缀 */}
+									{mailbox.domains.length > 0 && (
+										<div className="relative">
+											<select
+												value={domain}
+												onChange={(e) => setDomain(e.target.value)}
+												disabled={mailbox.loading}
+												className="appearance-none w-full pl-3 pr-8 py-2 rounded-lg text-sm bg-white/60 dark:bg-white/5 border border-white/40 dark:border-white/10 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/60 disabled:opacity-50"
+											>
+												<option value="">随机域名</option>
+												{mailbox.domains.map((d) => (
+													<option key={d.value} value={d.value}>
+														{d.value}
+													</option>
+												))}
+											</select>
+											<ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+										</div>
+									)}
+
+									<p className="text-xs text-slate-400 dark:text-slate-500 leading-5">
+										填前缀 + 固定域名可以重新打开之前建过的同一个地址。
+									</p>
 								</div>
 
 								{showRestore && (
@@ -189,7 +265,7 @@ export default function App() {
 							<button
 								type="button"
 								onClick={() => mailbox.refresh()}
-								disabled={mailbox.refreshing || !mailbox.token}
+								disabled={mailbox.refreshing || !mailbox.session}
 								className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
 							>
 								<RefreshCw
@@ -200,9 +276,9 @@ export default function App() {
 						</div>
 
 						<div className="flex-1 min-h-[26rem] overflow-y-auto">
-							{openMessageId ? (
+							{openMessageId && mailbox.session ? (
 								<MessageDetail
-									token={mailbox.token!}
+									session={mailbox.session}
 									messageId={openMessageId}
 									onBack={() => setOpenMessageId(null)}
 								/>

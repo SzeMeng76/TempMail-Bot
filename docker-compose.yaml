@@ -1,6 +1,6 @@
 services:
   tempmail-bot:
-    image: ghcr.io/szemeng76/tempmail-bot:latest # 也可改成 build: . 本地构建
+    image: ghcr.io/szemeng76/tempmail-bot:latest # 也可改成 build: 本地构建
     container_name: tempmail-bot
     restart: unless-stopped
     env_file:
@@ -8,12 +8,34 @@ services:
     volumes:
       - ./sessions:/app/sessions
 
+  # tempmail.id.vn 的中转服务：持有 API key、在多个账号间分摊、
+  # 账号满了就删最旧的邮箱。浏览器拿不到 key，也看不到别人的地址。
+  #
+  # 同样是 host 网络：这台机器的 Docker bridge 网络不可用（出站不通、
+  # 内置 DNS 也不通），只有 host 模式能访问外网。
+  # host 模式下 ports 映射不生效，直接用 VNPROXY_HOST 让它只绑回环地址，
+  # 保证 8091 不会暴露到公网。
+  tempmail-vnproxy:
+    image: ghcr.io/szemeng76/tempmail-bot:latest # 同一个镜像，改造启动命令
+    container_name: tempmail-vnproxy
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["python", "vnproxy.py"]
+    network_mode: host
+    environment:
+      VNPROXY_HOST: 127.0.0.1
+      VNPROXY_PORT: "8091"
+
   tempmail-web:
     image: ghcr.io/szemeng76/tempmail-web:latest # 也可改成 build: ./frontend 本地构建
     container_name: tempmail-web
     restart: unless-stopped
-    # 容器内 nginx 监听 8080，这里把宿主机的 8080 映射进去
-    # 若宿主机 Docker 网络异常必须用 network_mode: "host"，
-    # 则删掉 ports 这一段（host 模式下端口映射不生效，容器会直接占用宿主机的 8080）
-    ports:
-      - "8080:8080"
+    depends_on:
+      - tempmail-vnproxy
+    # host 网络：容器直接占用宿主机端口，宝塔反代到 127.0.0.1:8080。
+    #
+    # 注意 host 模式下**没有 Docker 内置 DNS**，容器里访问不了其他容器名，
+    # 所以 nginx 必须用 127.0.0.1:8091 这样的字面地址访问 vnproxy，
+    # 这也是 vnproxy 把端口发布到宿主机的原因。
+    network_mode: host

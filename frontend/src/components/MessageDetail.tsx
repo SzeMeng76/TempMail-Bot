@@ -1,8 +1,10 @@
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getMessage, type MessageDetail as MessageDetailType } from "../lib/mailtm";
+import type { MailboxSession, MailMessageDetail } from "../lib/mailbox";
+import * as mailtm from "../lib/mailtm";
+import * as tmvn from "../lib/tempmailedu";
 
-function buildSrcDoc(detail: MessageDetailType): string {
+function buildSrcDoc(detail: MailMessageDetail): string {
 	const content =
 		(detail.html && detail.html.join("")) ||
 		(detail.text ? detail.text.replace(/\n/g, "<br>") : "") ||
@@ -18,31 +20,46 @@ function buildSrcDoc(detail: MessageDetailType): string {
 </head><body>${content}</body></html>`;
 }
 
+async function loadDetail(
+	session: MailboxSession,
+	messageId: string,
+): Promise<MailMessageDetail> {
+	if (session.provider === "tempmailedu") {
+		return tmvn.getMessage(session.address, messageId);
+	}
+	// mail.tm 的读信接口需要登录 token，现场用密码换一次。
+	if (!session.password) throw new Error("缺少登录凭证");
+	const token = await mailtm.getToken(session.address, session.password);
+	return mailtm.getMessage(token, messageId);
+}
+
 export function MessageDetail({
-	token,
+	session,
 	messageId,
 	onBack,
 }: {
-	token: string;
+	session: MailboxSession;
 	messageId: string;
 	onBack: () => void;
 }) {
-	const [detail, setDetail] = useState<MessageDetailType | null>(null);
+	const [detail, setDetail] = useState<MailMessageDetail | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
-		getMessage(token, messageId)
+		loadDetail(session, messageId)
 			.then((data) => {
 				if (!cancelled) setDetail(data);
 			})
-			.catch(() => {
-				if (!cancelled) setError("加载邮件失败");
+			.catch((err) => {
+				if (!cancelled) {
+					setError(err instanceof Error ? err.message : "加载邮件失败");
+				}
 			});
 		return () => {
 			cancelled = true;
 		};
-	}, [token, messageId]);
+	}, [session, messageId]);
 
 	return (
 		<div className="flex flex-col h-full">
