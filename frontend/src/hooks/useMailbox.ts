@@ -7,8 +7,10 @@ import {
 } from "../lib/mailbox";
 import * as mailtm from "../lib/mailtm";
 import * as tmvn from "../lib/tempmailedu";
+import * as lv from "../lib/luuvan";
 import { generatePassword, generateUsername } from "../lib/generate";
 import { clearMailbox, loadMailbox, saveMailbox } from "../lib/storage";
+import { providerForAddress, readInboxParam } from "../lib/address";
 
 // mail.tm 没有读信额度上限，可以放心轮询。
 // tempmail.id.vn 免费版只有 900 次读/月，绝不能轮询，只能手动刷新。
@@ -38,9 +40,10 @@ export function useMailbox() {
 
 	// 汇总两个来源的可用域名。tempmail.id.vn 没配 key 时只返回 mail.tm 的。
 	const loadDomains = useCallback(async (): Promise<DomainOption[]> => {
-		const [tm, vn] = await Promise.allSettled([
+		const [tm, vn, lvv] = await Promise.allSettled([
 			mailtm.getDomains(),
 			tmvn.getDomains(),
+			lv.getDomains(),
 		]);
 
 		const options: DomainOption[] = [];
@@ -52,6 +55,11 @@ export function useMailbox() {
 		if (vn.status === "fulfilled") {
 			for (const domain of vn.value) {
 				options.push({ value: domain, provider: "tempmailedu" });
+			}
+		}
+		if (lvv.status === "fulfilled") {
+			for (const domain of lvv.value) {
+				options.push({ value: domain, provider: "luuvan" });
 			}
 		}
 		return options;
@@ -71,6 +79,9 @@ export function useMailbox() {
 		async (session: MailboxSession): Promise<MailMessage[]> => {
 			if (session.provider === "tempmailedu") {
 				return tmvn.getMessages(session.address);
+			}
+			if (session.provider === "luuvan") {
+				return lv.getMessages(session.address);
 			}
 			if (!tokenRef.current) {
 				if (!session.password) throw new Error("缺少登录凭证");
@@ -99,6 +110,19 @@ export function useMailbox() {
 			if (provider === "tempmailedu") {
 				const address = await tmvn.createMailbox(prefix, domain);
 				await openSession({ provider, address });
+				return;
+			}
+
+			if (provider === "luuvan") {
+				const created = await lv.createMailbox(prefix, domain);
+				await openSession({ provider, address: created.address });
+				// 游客建号有 24 小时有效期，必须让用户知道，不然会以为能长期用。
+				if (!created.viaKey) {
+					setState((prev) => ({
+						...prev,
+						error: "该邮箱将在 24 小时后过期（未配置服务端密钥）。",
+					}));
+				}
 				return;
 			}
 
@@ -151,8 +175,9 @@ export function useMailbox() {
 	/**
 	 * 恢复已有邮箱。
 	 *
-	 * 填密码 → 按 mail.tm 处理；不填密码 → 按 tempmail.id.vn 处理
-	 * （那边没有密码概念，地址本身就是凭证，服务端会校验它还在不在池子里）。
+	 * 填密码 → 按 mail.tm 处理；不填密码 → 地址就是凭证。
+	 * 不填密码时按域名判断归属：luuvan 的地址任何情况下都能直接读，
+	 * 剩下的按 tempmail.id.vn 处理（服务端会校验它还在不在池子里）。
 	 */
 	const restore = useCallback(
 		async (address: string, password: string) => {
@@ -162,7 +187,10 @@ export function useMailbox() {
 					await openSession({ provider: "mailtm", address, password });
 					return;
 				}
-				await openSession({ provider: "tempmailedu", address });
+				await openSession({
+					provider: providerForAddress(address, domains),
+					address,
+				});
 			} catch (err) {
 				setState((prev) => ({
 					...prev,
@@ -218,8 +246,20 @@ export function useMailbox() {
 		[state.session, fetchMessages],
 	);
 
-	// 初次加载：尝试恢复已保存的邮箱，失败则重新生成一个。
+	// 初次加载，优先级：URL 里的 ?inbox=地址 > 本地保存的邮箱 > 新生成一个。
+	//
+	// ?inbox= 是发给买家的直连链接：地址本身就能读，不需要密码也不需要恢复码。
+	// 这条路径不写 localStorage —— 打开别人的链接不该覆盖自己正在用的邮箱。
 	useEffect(() => {
+		const fromUrl = readInboxParam();
+
+		if (fromUrl) {
+			openSession({ provider: providerForAddress(fromUrl, domains), address: fromUrl })
+				.catch(() => generate())
+				.finally(() => setState((prev) => ({ ...prev, loading: false })));
+			return;
+		}
+
 		const stored = loadMailbox();
 		if (stored) {
 			openSession(stored)

@@ -10,10 +10,14 @@ function migrate(parsed: unknown): MailboxSession | null {
 	if (typeof raw.address !== "string" || !raw.address) return null;
 
 	const provider: Provider =
-		raw.provider === "tempmailedu" ? "tempmailedu" : "mailtm";
+		raw.provider === "tempmailedu"
+			? "tempmailedu"
+			: raw.provider === "luuvan"
+				? "luuvan"
+				: "mailtm";
 
-	if (provider === "tempmailedu") {
-		// tempmail.id.vn 不需要密码，地址本身就是全部凭证。
+	// tempmail.id.vn 和 luuvan 都不需要密码，地址本身就是全部凭证。
+	if (provider !== "mailtm") {
 		return { provider, address: raw.address };
 	}
 

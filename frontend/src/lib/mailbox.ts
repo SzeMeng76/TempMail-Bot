@@ -1,6 +1,6 @@
 // 两个来源共用的数据模型。组件只依赖这里的类型，不直接碰任何一家的原始 JSON。
 
-export type Provider = "mailtm" | "tempmailedu";
+export type Provider = "mailtm" | "tempmailedu" | "luuvan";
 
 export interface MailAddress {
 	address: string;

@@ -14,6 +14,7 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+import luuvan
 import tempmailedu
 import vnpool
 
@@ -97,6 +98,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.handle_message(query)
         if path == "/healthz":
             return success(self, {"ok": True})
+
+        # luuvan.site：读信只要地址（服务端 catch-all），建号才需要 key。
+        if path == "/lv/domains":
+            return self.handle_lv_domains()
+        if path == "/lv/messages":
+            return self.handle_lv_messages(query)
+        if path == "/lv/message":
+            return self.handle_lv_message(query)
         return error(self, 404, "not found")
 
     def do_POST(self):
@@ -108,11 +117,66 @@ class Handler(BaseHTTPRequestHandler):
                 return self.handle_delete()
             if path == "/resolve":
                 return self.handle_resolve()
+            if path == "/lv/create":
+                return self.handle_lv_create()
         except ValueError as exc:
             return error(self, 400, str(exc))
         return error(self, 404, "not found")
 
     # --- 实现 ---------------------------------------------------------------
+
+    # --- luuvan -------------------------------------------------------------
+
+    def handle_lv_domains(self):
+        """
+        luuvan 的域名单。读信不需要 key，所以这里没配 key 也算可用 ——
+        只有建号才受游客额度限制，前端不该因此把整个来源隐藏掉。
+        """
+        try:
+            return success(self, luuvan.domains())
+        except luuvan.LuuvanError as exc:
+            return error(self, 502, str(exc), getattr(exc, "kind", "other"))
+
+    def handle_lv_create(self):
+        # 没配 key 也能建号，但那是游客额度（5 个/天/IP、24 小时过期），
+        # 通过 viaKey 告诉前端，让它有时间提醒用户。
+        body = read_json(self)
+        prefix = (body.get("prefix") or "").strip() or None
+        domain = (body.get("domain") or "").strip() or None
+        try:
+            created = luuvan.create(prefix, domain)
+        except luuvan.LuuvanError as exc:
+            return error(self, 502, str(exc), getattr(exc, "kind", "other"))
+
+        return success(
+            self,
+            {
+                "address": created["address"],
+                "expiresAt": created["expires_at"],
+                "viaKey": created["via_key"],
+            },
+        )
+
+    def handle_lv_messages(self, query):
+        address = (query.get("address") or [""])[0].strip()
+        if not address:
+            return error(self, 400, "缺少 address")
+        try:
+            items = luuvan.list_messages(address)
+        except luuvan.LuuvanError as exc:
+            return error(self, 502, str(exc), getattr(exc, "kind", "other"))
+        return success(self, items)
+
+    def handle_lv_message(self, query):
+        address = (query.get("address") or [""])[0].strip()
+        message_id = (query.get("id") or [""])[0].strip()
+        if not address or not message_id:
+            return error(self, 400, "缺少 address 或 id")
+        try:
+            detail = luuvan.get_message(address, message_id)
+        except luuvan.LuuvanError as exc:
+            return error(self, 502, str(exc), getattr(exc, "kind", "other"))
+        return success(self, detail)
 
     def handle_domains(self):
         if not vnpool.available():

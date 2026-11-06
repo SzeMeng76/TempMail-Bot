@@ -26,9 +26,13 @@ from config import (
 
 import tempmailedu
 import vnpool
+import luuvan
 
 # tempmail.id.vn 是可选来源：没配 key 时 /tmail vn 会明确提示未启用，
 # 主流程（mail.tm）完全不受影响。多 key 调度、满了删最旧都在 vnpool 里。
+#
+# luuvan.site 不一样：它的地址本身就是读信凭证（服务端 catch-all），
+# 所以不需要存任何映射，/cmail 直接给地址就能读 —— 发卡密正是走这条路。
 
 # Initialize the bot client
 bot = Client(
@@ -135,6 +139,18 @@ STRINGS = {
             "**提示：直接点下方按钮查看邮件；之后可用 `/cmail 邮箱地址` 重新打开**"
         ),
         "vn_evicted_notice": "\n\n⚠️ 账号邮箱已满，已自动清理 {count} 个最旧的邮箱。",
+        "lv_create_failed": "**创建邮箱失败：** {error}",
+        "lv_read_failed": "**读取邮件失败：** {error}",
+        "lv_mail_details": (
+            "**📧 智能邮箱详情 📧**\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "**📧 邮箱：** `{email}`\n"
+            "**🔑 密码：** 无（不需要密码）\n"
+            "**🔒 令牌：** 无（地址本身就是凭证）\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "**提示：直接点下方按钮查看邮件；之后可用 `/cmail {email}` 重新打开**"
+        ),
+        "lv_expiry_notice": "\n\n⚠️ 当前未配置 API key，邮箱将在 {hours} 小时后过期。",
     },
     "zh-TW": {
         "choose_language": "🌐 請選擇語言 / Please select your language:",
@@ -201,6 +217,18 @@ STRINGS = {
             "**提示：直接點下方按鈕查看信件；之後可用 `/cmail 信箱地址` 重新開啟**"
         ),
         "vn_evicted_notice": "\n\n⚠️ 帳號信箱已滿，已自動清理 {count} 個最舊的信箱。",
+        "lv_create_failed": "**建立信箱失敗：** {error}",
+        "lv_read_failed": "**讀取信件失敗：** {error}",
+        "lv_mail_details": (
+            "**📧 智慧信箱詳情 📧**\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "**📧 信箱：** `{email}`\n"
+            "**🔑 密碼：** 無（不需要密碼）\n"
+            "**🔒 權杖：** 無（地址本身就是憑證）\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "**提示：直接點下方按鈕查看信件；之後可用 `/cmail {email}` 重新開啟**"
+        ),
+        "lv_expiry_notice": "\n\n⚠️ 目前未設定 API key，信箱將於 {hours} 小時後過期。",
     },
     "en-US": {
         "choose_language": "🌐 Please select your language:",
@@ -267,6 +295,18 @@ STRINGS = {
             "**Tip: use the button below to read messages**"
         ),
         "vn_evicted_notice": "\n\n⚠️ The account was full, so {count} of the oldest mailboxes were cleaned up.",
+        "lv_create_failed": "**Failed to create mailbox:** {error}",
+        "lv_read_failed": "**Failed to read messages:** {error}",
+        "lv_mail_details": (
+            "**📧 Mailbox details 📧**\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "**📧 Address:** `{email}`\n"
+            "**🔑 Password:** none (this source uses no password)\n"
+            "**🔒 Token:** none (the address itself is the credential)\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "**Tip: use the button below to read messages; later reopen with `/cmail {email}`**"
+        ),
+        "lv_expiry_notice": "\n\n⚠️ No API key configured, so this mailbox expires in {hours} hours.",
     },
 }
 
@@ -326,14 +366,20 @@ def get_domain():
 
 def pick_backend():
     """
-    随机挑一个可用的后端，返回 'mailtm' 或 'tempmailedu'。
+    随机挑一个可用的后端，返回 'mailtm'、'tempmailedu' 或 'luuvan'。
 
     用户不该关心邮箱是从哪来的——/tmail 默认就是随机一个。
-    未配置 vn key，或调用失败时一律回落到 mail.tm（它没有额度限制，更稳）。
+    未配置的 key 或调用失败时一律回落到 mail.tm（它没有额度限制，更稳）。
     """
-    if vnpool.available() and random.random() < 0.5:
-        return "tempmailedu"
-    return "mailtm"
+    # luuvan 不需要 key 也能建号（游客 5 个/天），所以始终参与分摊。
+    roll = random.random()
+    if vnpool.available():
+        # 有第三个来源时给 mail.tm 40%，另外两个各 30%。
+        if roll < 0.4:
+            return "mailtm"
+        return "tempmailedu" if roll < 0.7 else "luuvan"
+    # 没有 vn 时两个来源各一半。
+    return "mailtm" if roll < 0.5 else "luuvan"
 
 def create_account(email, password):
     data = {
@@ -451,6 +497,11 @@ async def generate_mail(client, message):
         await generate_mail_vn(user_id, message, loading_msg, args[1:])
         return
 
+    # `/tmail lv [前缀][@域名]` 走 luuvan：地址本身就是凭证，最适合发卡密。
+    if args and args[0].lower() in ("lv", "luuvan"):
+        await generate_mail_luuvan(user_id, message, loading_msg, args[1:])
+        return
+
     if len(args) == 1 and ':' in args[0]:
         username, password = args[0].split(':')
     else:
@@ -545,7 +596,45 @@ async def generate_mail_vn(user_id, message, loading_msg, args):
     await bot.delete_messages(message.chat.id, [loading_msg.id])
     return True
 
-@bot.on_callback_query(filters.regex(r'^check_'))
+
+async def generate_mail_luuvan(user_id, message, loading_msg, args):
+    """
+    luuvan.site 建号。
+
+    带 key 建的邮箱是永久的；没配 key 只能走游客接口（5 个/天/IP、24 小时过期），
+    这种情况要明确告诉用户，否则他会以为邮箱一直能用。
+    """
+    prefix = None
+    domain = None
+    if args:
+        raw = args[0]
+        if '@' in raw:
+            prefix, domain = raw.split('@', 1)
+        else:
+            prefix = raw
+        prefix = prefix.strip() or None
+        domain = (domain or "").strip() or None
+
+    try:
+        created = luuvan.create(prefix, domain)
+    except luuvan.LuuvanError as exc:
+        await message.reply(t(user_id, "lv_create_failed", error=exc))
+        await bot.delete_messages(message.chat.id, [loading_msg.id])
+        return
+
+    email = created["address"]
+    short_id = short_id_generator(email)
+    # 只存地址：luuvan 的读信接口只要地址，不需要 token/slot。
+    token_map[short_id] = {"provider": "luuvan", "address": email}
+
+    output_message = t(user_id, "lv_mail_details", email=email)
+    if not created["via_key"]:
+        output_message += t(user_id, "lv_expiry_notice", hours=24)
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(t(user_id, "btn_check_mail"), callback_data=f"check_{short_id}")]])
+
+    await message.reply(output_message, reply_markup=keyboard)
+    await bot.delete_messages(message.chat.id, [loading_msg.id])
 async def check_mail(client, callback_query):
     user_id = callback_query.from_user.id
     short_id = callback_query.data.split('_')[1]
@@ -559,6 +648,12 @@ async def check_mail(client, callback_query):
     if session["provider"] == "tempmailedu":
         fetched = await fetch_vn_messages(user_id, session, callback_query)
         if fetched is None:
+            return
+    elif session["provider"] == "luuvan":
+        try:
+            fetched = luuvan.list_messages(session["address"])
+        except luuvan.LuuvanError as exc:
+            await callback_query.message.reply(t(user_id, "lv_read_failed", error=exc))
             return
     else:
         fetched = list_messages(session["token"])
@@ -576,6 +671,9 @@ async def check_mail(client, callback_query):
         if session["provider"] == "tempmailedu":
             address = tempmailedu.sender_address(msg)
             subject = tempmailedu.subject(msg)
+        elif session["provider"] == "luuvan":
+            address = luuvan.sender_address(msg)
+            subject = luuvan.subject(msg)
         else:
             address = msg['from']['address']
             subject = msg['subject']
@@ -650,6 +748,10 @@ async def read_message(client, callback_query):
         await read_message_vn(user_id, callback_query, session, message_id)
         return
 
+    if session["provider"] == "luuvan":
+        await read_message_luuvan(user_id, callback_query, session, message_id)
+        return
+
     token = session["token"]
     headers = {
         "Content-Type": "application/json",
@@ -681,6 +783,44 @@ async def read_message(client, callback_query):
 
     else:
         await callback_query.message.reply(t(user_id, "detail_failed"))
+
+
+async def read_message_luuvan(user_id, callback_query, session, message_id):
+    """
+    luuvan.site 读信。正文在 html / text 两个字段里，html 优先。
+
+    详情接口要求同时带 address —— 服务端用它校验这封信属于该邮箱，
+    所以地址必须跟列表接口用的是同一个。
+    """
+    try:
+        details = luuvan.get_message(session["address"], message_id)
+    except luuvan.LuuvanError as exc:
+        await callback_query.message.reply(t(user_id, "lv_read_failed", error=exc))
+        return
+
+    html = details.get("html") or ""
+    if html.strip():
+        message_text = get_text_from_html([html])
+    else:
+        message_text = details.get("text") or ""
+
+    if not message_text.strip():
+        message_text = t(user_id, "no_content")
+
+    if len(message_text) > MAX_MESSAGE_LENGTH:
+        message_text = message_text[:MAX_MESSAGE_LENGTH - 100] + t(user_id, "truncated")
+
+    output = (
+        f"**{t(user_id, 'detail_from')}：** `{details.get('from') or ''}`\n"
+        f"**{t(user_id, 'detail_subject')}：** `{details.get('subject') or ''}`\n"
+        f"━━━━━━━━━━━━━━━━━━\n{message_text}"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(t(user_id, "btn_close"), callback_data="close_message")]
+    ])
+
+    await callback_query.message.reply(output, disable_web_page_preview=True, reply_markup=keyboard)
 
 
 async def read_message_vn(user_id, callback_query, session, message_id):
@@ -745,7 +885,11 @@ async def manual_check_mail(client, message):
     # 带 @ 的按邮箱地址处理（这部分来源没有令牌，地址本身就是凭证）；
     # 否则沿用原来的令牌方式。
     if "@" in arg:
-        await manual_check_vn(user_id, message, loading_msg, arg)
+        address = arg.strip()
+        if is_luuvan_address(address):
+            await manual_check_luuvan(user_id, message, loading_msg, address)
+        else:
+            await manual_check_vn(user_id, message, loading_msg, address)
         return
 
     token = arg
@@ -772,10 +916,80 @@ async def manual_check_mail(client, message):
     await bot.delete_messages(message.chat.id, [loading_msg.id])
 
 
+# luuvan 的域名表；用来判断 /cmail 给的地址该交给哪个来源。
+# 读不到时退回一份静态快照，保证离线/上游故障时也能判断。
+_LUUVAN_FALLBACK_DOMAINS = {
+    "n0ai.cloud",
+    "animee.tokyo",
+    "vibecoder.io.vn",
+    "luuvan.site",
+    "luuvan.online",
+    "lhuniverse.io.vn",
+    "locpnv.click",
+    "edu.luuvan.site",
+    "edu.animee.tokyo",
+    "edu.chotroi.site",
+}
+
+
+def is_luuvan_address(address):
+    """地址的域名是不是 luuvan 的（含 edu.* 那一整套子域）。"""
+    domain = address.rsplit("@", 1)[-1].strip().lower()
+    if not domain:
+        return False
+    known = set(luuvan.domains()) or _LUUVAN_FALLBACK_DOMAINS
+    if domain in known:
+        return True
+    # k01.edu.animee.tokyo 这类子域按后缀匹配。
+    return any(domain.endswith("." + d) for d in known)
+
+
+async def manual_check_luuvan(user_id, message, loading_msg, address):
+    """
+    luuvan 按地址读信。
+
+    不需要事先建号，也不需要 token —— 地址本身就是凭证，服务端是 catch-all。
+    这正是发卡密要的路径：买家把卡密里的地址发进来就能读。
+    """
+    try:
+        messages = luuvan.list_messages(address)
+    except luuvan.LuuvanError as exc:
+        await message.reply(t(user_id, "lv_read_failed", error=exc))
+        await bot.delete_messages(message.chat.id, [loading_msg.id])
+        return
+
+    user_tokens[user_id] = {"provider": "luuvan", "address": address}
+
+    if not messages:
+        await message.reply(t(user_id, "no_mail_alert"))
+        await bot.delete_messages(message.chat.id, [loading_msg.id])
+        return
+
+    output = t(user_id, "inbox_header")
+
+    buttons = []
+    for idx, msg in enumerate(messages[:10], 1):
+        output += t(
+            user_id,
+            "inbox_line",
+            idx=idx,
+            address=luuvan.sender_address(msg),
+            subject=luuvan.subject(msg),
+        )
+        button = InlineKeyboardButton(f"{idx}", callback_data=f"read_{msg['id']}")
+        buttons.append(button)
+
+    keyboard = []
+    for i in range(0, len(buttons), 5):
+        keyboard.append(buttons[i:i+5])
+
+    await message.reply(output, reply_markup=InlineKeyboardMarkup(keyboard))
+    await bot.delete_messages(message.chat.id, [loading_msg.id])
+
+
 async def manual_check_vn(user_id, message, loading_msg, address):
     """
     按邮箱地址恢复读取（这个来源没有令牌，地址就是凭证）。
-
     地址不在账号池里时说明邮箱已被回收，直接告诉用户重新生成。
     """
     if not vnpool.available():

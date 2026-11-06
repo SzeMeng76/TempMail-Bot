@@ -1,4 +1,4 @@
-import { ChevronDown, Mail, RefreshCw, RotateCcw } from "lucide-react";
+import { ChevronDown, Link2, Mail, RefreshCw, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { CopyButton } from "./components/CopyButton";
 import { Faq } from "./components/Faq";
@@ -9,7 +9,9 @@ import { MessageDetail } from "./components/MessageDetail";
 import { MessageItem } from "./components/MessageItem";
 import { MessageSkeleton } from "./components/MessageSkeleton";
 import { Navbar } from "./components/Navbar";
+import { InboxView } from "./components/InboxView";
 import { useMailbox } from "./hooks/useMailbox";
+import { inboxLink, readInboxParam } from "./lib/address";
 
 function RestoreForm({
 	onRestore,
@@ -93,18 +95,44 @@ function RestoreForm({
 }
 
 export default function App() {
+	// 带 ?inbox= 进来的是买家/收件人，他们只需要看信，不该看到任何建号控件。
+	// 这个判断必须在 useMailbox 之前 —— 否则会白白生成一个邮箱。
+	const inboxAddress = readInboxParam();
+	if (inboxAddress) {
+		return <InboxView address={inboxAddress} />;
+	}
+
+	return <HomePage />;
+}
+
+function HomePage() {
 	const mailbox = useMailbox();
 	const [openMessageId, setOpenMessageId] = useState<string | null>(null);
 	const [showRestore, setShowRestore] = useState(false);
 
 	const [domain, setDomain] = useState("");
 	const [prefix, setPrefix] = useState("");
+	const [linkCopied, setLinkCopied] = useState(false);
 
 	const unreadCount = mailbox.messages.filter((m) => !m.seen).length;
 
 	const handleGenerate = () => {
 		setOpenMessageId(null);
 		mailbox.generate(domain || undefined, prefix.trim() || undefined);
+	};
+
+	// 直连链接是给买家/收件人用的：打开就进这个收件箱，不用密码也不用恢复码。
+	const handleCopyInboxLink = async () => {
+		const address = mailbox.session?.address;
+		if (!address) return;
+		try {
+			await navigator.clipboard.writeText(inboxLink(address));
+			setLinkCopied(true);
+			window.setTimeout(() => setLinkCopied(false), 2000);
+		} catch {
+			// 非 HTTPS 或浏览器拒绝时退回让用户手动选中地址。
+			setLinkCopied(false);
+		}
 	};
 
 	return (
@@ -164,6 +192,19 @@ export default function App() {
 									>
 										恢复已有邮箱
 									</button>
+									{mailbox.session?.provider === "luuvan" && (
+										<>
+											<span className="text-slate-300 dark:text-slate-600">·</span>
+											<button
+												type="button"
+												onClick={handleCopyInboxLink}
+												className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+											>
+												<Link2 className="w-3.5 h-3.5" />
+												{linkCopied ? "已复制链接" : "复制直连链接"}
+											</button>
+										</>
+									)}
 								</div>
 
 								{/* 不选就随机，选了就固定用那个后缀 */}

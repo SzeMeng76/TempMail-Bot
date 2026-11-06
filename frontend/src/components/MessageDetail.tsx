@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { MailboxSession, MailMessageDetail } from "../lib/mailbox";
 import * as mailtm from "../lib/mailtm";
 import * as tmvn from "../lib/tempmailedu";
+import * as lv from "../lib/luuvan";
 
 function buildSrcDoc(detail: MailMessageDetail): string {
 	const content =
@@ -26,6 +27,9 @@ async function loadDetail(
 ): Promise<MailMessageDetail> {
 	if (session.provider === "tempmailedu") {
 		return tmvn.getMessage(session.address, messageId);
+	}
+	if (session.provider === "luuvan") {
+		return lv.getMessage(session.address, messageId);
 	}
 	// mail.tm 的读信接口需要登录 token，现场用密码换一次。
 	if (!session.password) throw new Error("缺少登录凭证");
