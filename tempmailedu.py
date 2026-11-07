@@ -6,19 +6,21 @@
 #   - 没有迁移接口。想换账号只能删掉重建，且重建后 mail_id 会变（不是同一个邮箱）。
 #   - 免费额度很紧：900 次读/月、20 次/分、50 个邮箱。绝不能轮询。
 
-import requests
-from requests.adapters import HTTPAdapter
+from curl_cffi import requests as cffi_requests
 
 BASE_URL = "https://tempmail.id.vn/api"
 # 连接超时压到 5 秒：比 nginx 的 30 秒短得多。上游不可用时快速失败并返回
 # 结构化错误，而不是让用户干等 30 秒才看到 502。
 TIMEOUT = (5, 15)
 
-# retries=0：连接超时不该被重试放大成 N 倍。
-_session = requests.Session()
-_adapter = HTTPAdapter(max_retries=0)
-_session.mount("http://", _adapter)
-_session.mount("https://", _adapter)
+# 为什么不用 requests：上游在 Cloudflare 后面，会按 TLS 指纹拦截。
+# 同一个 key、同一个 URL，requests（OpenSSL 指纹）稳定返回 403/520，
+# curl 和浏览器指纹则返回 200。表现为「key 配对了但域名一直拉不到」，
+# 响应是 HTML 而不是 JSON。所以这里用 curl_cffi 伪装成 Chrome 的 TLS/HTTP2 指纹。
+#
+# 一个 Session 可被 vnproxy 的多个请求线程共用（默认 thread-local 的 curl 句柄）。
+# 不自动重试：连接超时不该被重试放大成 N 倍。
+_session = cffi_requests.Session(impersonate="chrome")
 
 
 class TempMailEduError(Exception):
@@ -58,7 +60,7 @@ def _request(api_key, method, path, **kwargs):
         response = _session.request(
             method, f"{BASE_URL}{path}", headers=_headers(api_key), timeout=TIMEOUT, **kwargs
         )
-    except requests.RequestException as exc:
+    except cffi_requests.exceptions.RequestException as exc:
         # 网络层失败：上游挂了或超时，换 key 也没用，但过一会儿可能就好。
         raise TempMailEduError(f"网络不可达 ({exc.__class__.__name__})", retryable=False, kind="other")
 

@@ -1,4 +1,5 @@
 pyrofork
 tgcrypto
 requests
+curl_cffi==0.15.0
 beautifulsoup4
